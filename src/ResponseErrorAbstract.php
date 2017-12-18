@@ -99,8 +99,15 @@ abstract class ResponseErrorAbstract extends ResponseHandlerAbstract
      */
     public function renderHTML(\Throwable $e, Inspector $inspector, RunInterface $run) : int
     {
+        // use plain text if it is on cli
+        if (PHP_SAPI === 'cli') {
+            return $this->renderPlainText($e, $inspector, $run);
+        }
+
         if ($this->isDisplayError()) {
             $response = new PrettyPageHandler();
+            $response->setRun($run);
+            $response->setInspector($inspector);
             $response->setException($e);
             return $response->handle();
         }
@@ -168,6 +175,8 @@ HTML;
             $response = new WhoopsJsonResponseHandler();
             // do not use JSON API
             $response->setJsonApi(false);
+            $response->setRun($run);
+            $response->setInspector($inspector);
             $response->addTraceToOutput(true);
             $response->setException($e);
             return $response->handle();
@@ -195,6 +204,8 @@ HTML;
     {
         if ($this->isDisplayError()) {
             $response = new XmlResponseHandler();
+            $response->setRun($run);
+            $response->setInspector($inspector);
             $response->addTraceToOutput(true);
             $response->setException($e);
             return $response->handle();
@@ -222,6 +233,8 @@ XML;
     {
         if ($this->isDisplayError()) {
             $response = new PlainTextHandler();
+            $response->setRun($run);
+            $response->setInspector($inspector);
             $response->addTraceToOutput(true);
             $response->setException($e);
             return $response->handle();
