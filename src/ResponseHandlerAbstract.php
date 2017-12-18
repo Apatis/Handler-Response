@@ -97,7 +97,7 @@ abstract class ResponseHandlerAbstract extends SetContentTypeHandler implements 
         ) {
             foreach ($match as $key => $value) {
                 // if key is string that must be output
-                if (is_string($key)) {
+                if ($value && is_string($key)) {
                     return $key;
                 }
             }

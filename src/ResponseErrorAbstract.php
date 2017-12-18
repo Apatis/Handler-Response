@@ -67,21 +67,23 @@ abstract class ResponseErrorAbstract extends ResponseHandlerAbstract
         \Throwable $e
     ) : Run {
         $whoops = new Run();
-        $responseHandler = 'renderHtmlError';
+        // disable write to output
+        $whoops->writeToOutput(false);
+        // push handler by Type
         switch ($this->determineOutputType()) {
             case self::TYPE_JSON:
-                $responseHandler = 'renderJsonError';
+                $whoops->pushHandler([$this, 'renderJson']);
                 break;
             case self::TYPE_XML:
-                $responseHandler = 'renderXMLError';
+                $whoops->pushHandler([$this, 'renderXML']);
                 break;
             case self::TYPE_PLAIN:
-                $responseHandler = 'renderXMLError';
+                $whoops->pushHandler([$this, 'renderPlainText']);
                 break;
+            default:
+                $whoops->pushHandler([$this, 'renderHtml']);
         }
 
-        // push handler
-        $whoops->pushHandler([$this, $responseHandler]);
         return $whoops;
     }
 
