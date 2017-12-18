@@ -31,6 +31,9 @@ namespace Apatis\Handler\Response;
  */
 abstract class ResponseHandlerAbstract extends SetContentTypeHandler implements ResponseHandlerInterface
 {
+    /**
+     * list response type
+     */
     const TYPE_JSON   = 'json';
     const TYPE_PLAIN  = 'plain';
     const TYPE_XML    = 'xml';

@@ -121,7 +121,7 @@ abstract class ResponseErrorAbstract extends ResponseHandlerAbstract
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style type="text/css">
     body {
-        background: #fff;
+        background: #f1f1f1;
         color: #444;
         font-family: 'Helvetica', arial,sans-serif;
         line-height: normal;
