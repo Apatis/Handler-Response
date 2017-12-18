@@ -99,12 +99,12 @@ abstract class ResponseErrorAbstract extends ResponseHandlerAbstract
      */
     public function renderHTML(\Throwable $e, Inspector $inspector, RunInterface $run) : int
     {
-        // use plain text if it is on cli
-        if (PHP_SAPI === 'cli') {
-            return $this->renderPlainText($e, $inspector, $run);
-        }
-
         if ($this->isDisplayError()) {
+            // if is diplay error, whoops does not allow to render pretty page handler
+            // use plain text if it is on cli
+            if (PHP_SAPI === 'cli') {
+                return $this->renderPlainText($e, $inspector, $run);
+            }
             $response = new PrettyPageHandler();
             $response->setRun($run);
             $response->setInspector($inspector);
