@@ -29,22 +29,18 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
- * Class ErrorHandler
+ * Class ExceptionHandler
  * @package Apatis\Handler\Response
  */
-class ErrorHandler extends ResponseErrorAbstract implements ErrorHandlerInterface
+class ExceptionHandler extends ResponseErrorAbstract implements ExceptionHandlerInterface
 {
     /**
-     * @param ServerRequestInterface $request
-     * @param ResponseInterface $response
-     * @param \Throwable $e
-     *
-     * @return ResponseInterface
+     * {@inheritdoc}
      */
     public function __invoke(
         ServerRequestInterface $request,
         ResponseInterface $response,
-        \Throwable $e
+        \Exception $e
     ): ResponseInterface {
         return $this->generateOutputHandler(
             $request,

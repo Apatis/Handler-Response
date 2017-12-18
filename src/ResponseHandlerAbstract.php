@@ -31,6 +31,11 @@ namespace Apatis\Handler\Response;
  */
 abstract class ResponseHandlerAbstract extends SetContentTypeHandler implements ResponseHandlerInterface
 {
+    const TYPE_JSON   = 'json';
+    const TYPE_PLAIN  = 'plain';
+    const TYPE_XML    = 'xml';
+    const TYPE_HTML   = 'html';
+
     /**
      * @var bool
      */
@@ -50,5 +55,54 @@ abstract class ResponseHandlerAbstract extends SetContentTypeHandler implements 
     public function isDisplayError(): bool
     {
         return $this->displayError;
+    }
+
+    /**
+     * Clean All Output buffers
+     *
+     * @return void
+     */
+    protected function cleanOutputBuffer()
+    {
+        $level = ob_get_level();
+        while ($level > 0) {
+            $level--;
+            ob_end_clean();
+        }
+    }
+
+    /**
+     * Determine Output Type
+     *
+     * @return string
+     */
+    public function determineOutputType() : string
+    {
+        $contentType = $this->getContentType();
+        // set default
+        $type = self::TYPE_HTML;
+        if (is_string($contentType) && trim($contentType) !== ''
+            // use regex match parameter
+            // sort by priority type
+            && preg_match(
+                '`
+                    (?P<'.self::TYPE_JSON.'>\/ja?son|js)
+                    | (?P<'.self::TYPE_PLAIN.'>plain)
+                    | (?P<'.self::TYPE_XML.'>application\/xml)
+                    | (?P<'.self::TYPE_HTML.'>\/html)
+                  `xi',
+                $contentType,
+                $match
+            ) && !empty($match)
+        ) {
+            foreach ($match as $key => $value) {
+                // if key is string that must be output
+                if (is_string($key)) {
+                    return $key;
+                }
+            }
+        } // else using default self::TYPE_HTML
+
+        return $type;
     }
 }

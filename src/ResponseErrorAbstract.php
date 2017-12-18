@@ -30,7 +30,6 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Whoops\Exception\Inspector;
 use Whoops\Handler\Handler;
-use Whoops\Handler\JsonResponseHandler;
 use Whoops\Handler\PlainTextHandler;
 use Whoops\Handler\PrettyPageHandler;
 use Whoops\Handler\XmlResponseHandler;
@@ -43,11 +42,6 @@ use Whoops\RunInterface;
  */
 abstract class ResponseErrorAbstract extends ResponseHandlerAbstract
 {
-    const TYPE_JSON   = 'json';
-    const TYPE_PLAIN  = 'plain';
-    const TYPE_XML    = 'xml';
-    const TYPE_HTML   = 'html';
-
     /**
      * ResponseErrorAbstract constructor.
      *
@@ -59,120 +53,160 @@ abstract class ResponseErrorAbstract extends ResponseHandlerAbstract
     }
 
     /**
-     * Clean All Output buffering
-     */
-    protected function cleanOutputBuffer()
-    {
-        $level = ob_get_level();
-        while ($level > 0) {
-            $level--;
-            ob_end_clean();
-        }
-    }
-
-    /**
-     * Determine Output Type
+     * Parameter just for reference
      *
-     * @return string
-     */
-    protected function determineOutputType() : string
-    {
-        $contentType = $this->getContentType();
-        $type = self::TYPE_HTML;
-        if ($contentType !== '') {
-            preg_match(
-                '`
-                    (?P<json>\/ja?son|js)
-                    | (?P<plain>plain)
-                    | (?P<xml>application\/xml)
-                    | (?P<html>\/html)
-                  `xi',
-                $contentType,
-                $match
-            );
-            foreach ($match as $key => $value) {
-                if (is_string($key)) {
-                    return $key;
-                }
-            }
-        }
-
-        return $type;
-    }
-
-    /**
-     * Get Output
+     * @param ServerRequestInterface $request
+     * @param ResponseInterface $response
+     * @param \Throwable $e
      *
      * @return Run
      */
-    protected function getOutputHandler() : Run
-    {
+    protected function getOutputHandler(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        \Throwable $e
+    ) : Run {
         $whoops = new Run();
-        $type = $this->determineOutputType();
-        if ($this->isDisplayError()) {
-            switch ($type) {
-                case self::TYPE_JSON:
-                    $responseHandler = new JsonResponseHandler();
-                    // $responseHandler->addTraceToOutput(true);
-                    break;
-                case self::TYPE_XML:
-                    $responseHandler = new XmlResponseHandler();
-                    // $responseHandler->addTraceToOutput(true);
-                    break;
-                case self::TYPE_PLAIN:
-                    $responseHandler = new PlainTextHandler();
-                    // $responseHandler->addTraceToOutput(true);
-                    break;
-                default:
-                    $responseHandler = new PrettyPageHandler();
-                    break;
-            }
-        } else {
-            $responseHandler = function (\Throwable $e, Inspector $inspector, RunInterface $run) use ($type) {
-                switch ($type) {
-                    case self::TYPE_JSON:
-                        return $this->renderJsonError($e, $inspector, $run);
-                    case self::TYPE_XML:
-                        return $this->renderXMLError($e, $inspector, $run);
-                    case self::TYPE_PLAIN:
-                        return $this->renderTextError($e, $inspector, $run);
-                    default:
-                        return $this->renderHtmlError($e, $inspector, $run);
-                }
-            };
+        $responseHandler = 'renderHtmlError';
+        switch ($this->determineOutputType()) {
+            case self::TYPE_JSON:
+                $responseHandler = 'renderJsonError';
+                break;
+            case self::TYPE_XML:
+                $responseHandler = 'renderXMLError';
+                break;
+            case self::TYPE_PLAIN:
+                $responseHandler = 'renderXMLError';
+                break;
         }
 
-        $whoops->pushHandler($responseHandler);
-        $whoops->allowQuit(false);
+        // push handler
+        $whoops->pushHandler([$this, $responseHandler]);
         return $whoops;
     }
 
     /**
+     * Render HTML Output
+     *
      * @param \Throwable $e
      * @param Inspector $inspector
      * @param RunInterface $run
      *
      * @return int
+     * @throws \Throwable
      */
-    public function renderHtmlError(\Throwable $e, Inspector $inspector, RunInterface $run) : int
+    public function renderHTML(\Throwable $e, Inspector $inspector, RunInterface $run) : int
     {
-        return Handler::QUIT;
+        if ($this->isDisplayError()) {
+            $response = new PrettyPageHandler();
+            $response->setException($e);
+            return $response->handle();
+        }
+
+        echo <<<'HTML'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>500 Internal Server Error</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style type="text/css">
+    body {
+        background: #fff;
+        color: #444;
+        font-family: 'Helvetica', arial,sans-serif;
+        line-height: normal;
+        vertical-align: baseline;
+        font-size: 14px;
+    }
+    .wrapper {
+        text-align:center;
+    }
+    .wrapper .error-title {
+        font-size: 15em;
+        margin: 20vh 0 0;
+        line-height: 1em;
+    }
+    .wrapper .error-sub-title {
+        font-size: 2em;
+        letter-spacing: 1px;
+        margin: .1em 0 .2em;
+    }
+    .wrapper .error-description {
+        margin: 1em 0 1.2em;
+        font-size: 14px;
+    }
+  </style>
+</head>
+<body class="error-500">
+  <div class="wrapper">
+    <h1 class="error-title">500</h1>
+    <h3 class="error-sub-title">Internal Server Error</h3>
+    <p class="error-description">There was an error. We are sorry for inconvenience.</p>
+  </div>
+</body>
+</html>
+HTML;
+
+        return Handler::DONE;
     }
 
     /**
+     * Render JSON Output
+     *
      * @param \Throwable $e
      * @param Inspector $inspector
      * @param RunInterface $run
      *
      * @return int
      */
-    public function renderJsonError(\Throwable $e, Inspector $inspector, RunInterface $run) : int
+    public function renderJSON(\Throwable $e, Inspector $inspector, RunInterface $run) : int
     {
+        if ($this->isDisplayError()) {
+            $response = new WhoopsJsonResponseHandler();
+            // do not use JSON API
+            $response->setJsonApi(false);
+            $response->addTraceToOutput(true);
+            $response->setException($e);
+            return $response->handle();
+        }
+
         echo json_encode([
-            'error' => 'There was an error'
-        ]);
+            'error' => [
+                'message' => 'There was an error'
+            ]
+        ], JSON_PRETTY_PRINT);
 
-        return Handler::QUIT;
+        return Handler::DONE;
+    }
+
+    /**
+     * Render XML Output
+     *
+     * @param \Throwable $e
+     * @param Inspector $inspector
+     * @param RunInterface $run
+     *
+     * @return int
+     */
+    public function renderXML(\Throwable $e, Inspector $inspector, RunInterface $run) : int
+    {
+        if ($this->isDisplayError()) {
+            $response = new XmlResponseHandler();
+            $response->addTraceToOutput(true);
+            $response->setException($e);
+            return $response->handle();
+        }
+
+        echo <<<XML
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+<error>
+    <message>There was an error</message>
+</error>
+</root>
+XML;
+        return Handler::DONE;
     }
 
     /**
@@ -182,27 +216,22 @@ abstract class ResponseErrorAbstract extends ResponseHandlerAbstract
      *
      * @return int
      */
-    public function renderXMLError(\Throwable $e, Inspector $inspector, RunInterface $run) : int
+    public function renderPlainText(\Throwable $e, Inspector $inspector, RunInterface $run) : int
     {
-        echo '<?xml version="1.0" encoding="utf-8"?>';
-        echo "<root><error>There was an error</error></root>";
-        return Handler::QUIT;
-    }
+        if ($this->isDisplayError()) {
+            $response = new PlainTextHandler();
+            $response->addTraceToOutput(true);
+            $response->setException($e);
+            return $response->handle();
+        }
 
-    /**
-     * @param \Throwable $e
-     * @param Inspector $inspector
-     * @param RunInterface $run
-     *
-     * @return int
-     */
-    public function renderTextError(\Throwable $e, Inspector $inspector, RunInterface $run) : int
-    {
         echo "There was an error";
-        return Handler::QUIT;
+        return Handler::DONE;
     }
 
     /**
+     * Generate Output Handler For Response
+     *
      * @param ServerRequestInterface $request
      * @param ResponseInterface $response
      * @param \Throwable $e
@@ -224,7 +253,9 @@ abstract class ResponseErrorAbstract extends ResponseHandlerAbstract
         $this->cleanOutputBuffer();
         $body = new RequestBody();
 
-        $handler = $this->getOutputHandler();
+        $handler = $this->getOutputHandler($request, $response, $e);
+        // disable quit
+        $handler->allowQuit(false);
         // log
         $this->logThrowable($e);
         // write handler

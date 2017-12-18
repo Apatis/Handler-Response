@@ -1,6 +1,6 @@
 {
     "name": "apatis/handler-response",
-    "description": "Response Handler",
+    "description": "Response Handler For Route Response",
     "type": "library",
     "require": {
         "php": "^7.0",
