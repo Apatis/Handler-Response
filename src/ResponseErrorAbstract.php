@@ -260,8 +260,10 @@ XML;
     ) : ResponseInterface {
 
         $contentType = $this->getContentType();
+        // if content type has not been set
+        // get it from Request
         if (!$contentType) {
-            $contentType = $response->getHeaderLine('Content-Type')?: static::DEFAULT_CONTENT_TYPE;
+            $contentType = $request->getHeaderLine('Content-Type')?: static::DEFAULT_CONTENT_TYPE;
             $this->setContentType($contentType);
         }
 
