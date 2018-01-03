@@ -182,7 +182,7 @@ HTML;
         $body = new RequestBody();
         // write handler
         $body->write($output);
-        return $response->withStatus(405)->withBody($body);
+        return $response->withStatus(404)->withBody($body);
     }
 
     /**
