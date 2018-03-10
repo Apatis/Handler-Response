@@ -1,31 +1,40 @@
 <?php
 /**
- * MIT License
+ * BSD 3-Clause License
  *
- * Copyright (c) 2017 Pentagonal Development
+ * Copyright (c) 2018, Pentagonal Development
+ * All rights reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ *  Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON INFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ *  Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ *  Neither the name of the copyright holder nor the names of its
+ *   contributors may be used to endorse or promote products derived from
+ *   this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 namespace Apatis\Handler\Response;
 
 use Apatis\Http\Message\RequestBody;
+use Apatis\Http\Message\Stream;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -50,7 +59,9 @@ class NotAllowedHandler extends ResponseHandlerAbstract implements NotAllowedHan
         array $allowedMethods
     ) {
         printf("Method %s is not allowed\r\n", $request->getMethod());
-        printf("Request method must be one of: (%s).\r\n", implode(', ', $allowedMethods));
+        if ($this->isDisplayError()) {
+            printf("Request method must be one of: (%s).\r\n", implode(', ', $allowedMethods));
+        }
     }
 
     /**
@@ -68,22 +79,27 @@ class NotAllowedHandler extends ResponseHandlerAbstract implements NotAllowedHan
         array $allowedMethods
     ) {
         $message = sprintf('Method %s is not allowed', $request->getMethod());
-        $method = htmlentities($request->getMethod());
-        $allowedMethodXML = '';
-        foreach ($allowedMethods as $value) {
-            $value = htmlentities($value);
-            $allowedMethodXML .= "<method>{$value}</method>";
+        $baseSep = str_repeat(' ', 4);
+        $sep = str_repeat($baseSep, 2);
+        $xml = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+            . "<root>\n"
+            . "{$baseSep}<error>\n"
+            . "{$sep}<message>{$message}</message>\n";
+
+        if ($this->isDisplayError()) {
+            $method = htmlentities($request->getMethod());
+            $allowedMethodXML = '';
+            foreach ($allowedMethods as $value) {
+                $value = htmlentities($value);
+                $allowedMethodXML .= "{$baseSep}<method>{$value}</method>\n{$sep}";
+            }
+
+            $xml .= "{$sep}<request_method>{$method}</request_method>\n";
+            $xml .= "{$sep}<allowed_methods>\n{$sep}{$allowedMethodXML}</allowed_methods>\n";
         }
-        echo <<<XML
-<?xml version="1.0" encoding="utf-8"?>
-<root>
-<error>
-    <message>{$message}</message>
-    <request_method>{$method}</request_method>
-    <allowed_methods>{$allowedMethodXML}</allowed_methods>
-</error>
-</root>
-XML;
+
+        $xml .= "{$baseSep}</error>\n</root>";
+        echo $xml;
     }
 
     /**
@@ -100,13 +116,17 @@ XML;
         ResponseInterface $response,
         array $allowedMethods
     ) {
-        echo json_encode([
+        $error = [
             'error' => [
                 'message' => sprintf('Method %s is not allowed', $request->getMethod()),
-                'request_method' => $request->getMethod(),
-                'allowed_methods' => array_values($allowedMethods)
             ],
-        ], JSON_PRETTY_PRINT);
+        ];
+        if ($this->isDisplayError()) {
+            $error['message']['request_method']  = $request->getMethod();
+            $error['message']['allowed_methods'] = array_values($allowedMethods);
+        }
+
+        echo json_encode($error, JSON_PRETTY_PRINT);
     }
 
     /**
@@ -122,8 +142,16 @@ XML;
         ResponseInterface $response,
         array $allowedMethods
     ) {
-        $method = $request->getMethod();
-        $allowed = implode(', ', $allowedMethods);
+        $addition = '';
+        if ($this->isDisplayError()) {
+            $method = $request->getMethod();
+            $allowed = implode(', ', $allowedMethods);
+            $addition = <<<TAG
+
+    <p class="error-description">Method `{$method}` is not allowed.</p>
+    <p class="error-description">Request method must be one of: ({$allowed}).</p>
+TAG;
+        }
         echo <<<HTML
 <!DOCTYPE html>
 <html lang="en">
@@ -162,9 +190,7 @@ XML;
 <body class="error-405">
   <div class="wrapper">
     <h1 class="error-title">405</h1>
-    <h3 class="error-sub-title">Method Not Allowed</h3>
-    <p class="error-description">Method `{$method}` is not allowed.</p>
-    <p class="error-description">Request method must be one of: ({$allowed}).</p>
+    <h3 class="error-sub-title">Method Not Allowed</h3>{$addition}
   </div>
 </body>
 </html>
@@ -202,7 +228,7 @@ HTML;
         }
 
         $output = ob_get_clean();
-        $body = new RequestBody();
+        $body = new Stream(fopen('php://temp', 'r+'));
         // write handler
         $body->write($output);
         return $response->withStatus(405)->withBody($body);
