@@ -123,8 +123,8 @@ class NotAllowedHandler extends ResponseHandlerAbstract implements NotAllowedHan
             ],
         ];
         if ($this->isDisplayError()) {
-            $error['message']['request_method']  = $request->getMethod();
-            $error['message']['allowed_methods'] = array_values($allowedMethods);
+            $error['error']['request_method']  = $request->getMethod();
+            $error['error']['allowed_methods'] = array_values($allowedMethods);
         }
 
         echo json_encode($error, JSON_PRETTY_PRINT);
