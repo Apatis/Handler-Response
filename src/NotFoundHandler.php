@@ -47,7 +47,7 @@ class NotFoundHandler extends ResponseHandlerAbstract implements NotFoundHandler
      */
     protected function renderPlainText(ServerRequestInterface $request, ResponseInterface $response)
     {
-        echo "404 Page Not Found";
+        echo "404 Not Found";
     }
 
     /**
@@ -67,7 +67,7 @@ class NotFoundHandler extends ResponseHandlerAbstract implements NotFoundHandler
 <root>
 <error>
     <code>404</code>
-    <message>404 Page Not Found</message>
+    <message>Not Found</message>
 </error>
 </root>
 XML;
@@ -87,7 +87,7 @@ XML;
     {
         echo json_encode([
             'error' => [
-                'message' => '404 Page Not Found'
+                'message' => 'Not Found'
             ],
         ], JSON_PRETTY_PRINT);
     }
